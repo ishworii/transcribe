@@ -7,9 +7,11 @@ from typing import Optional
 
 import assemblyai as aai
 from dotenv import load_dotenv
-
 from ffmpeg_audio import AudioExtractResult, normalize_to_wav
-from format_md import assemblyai_to_speaker_turns, save_transcript_markdown
+from format_md import (
+    assemblyai_to_speaker_turns,
+    save_transcript_markdown,
+)
 from media_probe import probe_media
 
 # Load environment variables
@@ -63,6 +65,13 @@ def transcribe_audio_file(
     Raises:
         AssemblyAIError if transcription fails
     """
+    import warnings
+
+    # Suppress Pydantic serialization warning for speech_understanding
+    warnings.filterwarnings(
+        "ignore", category=UserWarning, module="pydantic"
+    )
+
     api_key = _ensure_api_key()
     aai.settings.api_key = api_key
 
@@ -71,7 +80,16 @@ def transcribe_audio_file(
         speaker_labels=speaker_labels,
         punctuate=punctuate,
         format_text=format_text,
+        speech_model=aai.SpeechModel.universal,
     )
+    config.speech_understanding = {
+        "request": {
+            "speaker_identification": {
+                "speaker_type": "name",
+                "known_values": [],
+            }
+        }
+    }
 
     if language_code:
         config.language_code = language_code
@@ -81,7 +99,9 @@ def transcribe_audio_file(
     transcript = transcriber.transcribe(str(audio_path), config)
 
     if transcript.status == aai.TranscriptStatus.error:
-        raise AssemblyAIError(f"Transcription failed: {transcript.error}")
+        raise AssemblyAIError(
+            f"Transcription failed: {transcript.error}"
+        )
 
     if not transcript.utterances:
         raise AssemblyAIError(
@@ -130,7 +150,15 @@ def transcribe_with_normalization(
     # Check if file has audio stream
     if not media_info.has_audio:
         # Check if it's obviously not a media file
-        non_media_extensions = {'.md', '.txt', '.json', '.pdf', '.doc', '.docx', '.html'}
+        non_media_extensions = {
+            ".md",
+            ".txt",
+            ".json",
+            ".pdf",
+            ".doc",
+            ".docx",
+            ".html",
+        }
         if input_path.suffix.lower() in non_media_extensions:
             raise ValueError(
                 f"Invalid file type: {input_path.name}\n"
@@ -164,16 +192,24 @@ def transcribe_with_normalization(
         print(f"Normalized: {audio_result.output_wav_path}")
 
         # Transcribe with AssemblyAI
-        print("Transcribing with AssemblyAI (this may take a few minutes)...")
+        print(
+            "Transcribing with AssemblyAI (this may take a few minutes)..."
+        )
         transcript = transcribe_audio_file(
             audio_result.output_wav_path,
             language_code=language_code,
         )
-        print(f"Transcription complete! Word count: {len(transcript.words or [])}")
+        print(
+            f"Transcription complete! Word count: {len(transcript.words or [])}"
+        )
 
         # Convert to speaker turns
-        speaker_turns = assemblyai_to_speaker_turns(transcript.utterances)
-        print(f"Detected {len(set(t.speaker_label for t in speaker_turns))} speakers")
+        speaker_turns = assemblyai_to_speaker_turns(
+            transcript.utterances
+        )
+        print(
+            f"Detected {len(set(t.speaker_label for t in speaker_turns))} speakers"
+        )
 
         # Save as markdown
         md_path = save_transcript_markdown(
@@ -189,4 +225,5 @@ def transcribe_with_normalization(
         # Cleanup temp directory if used
         if temp_dir:
             import shutil
+
             shutil.rmtree(temp_dir, ignore_errors=True)

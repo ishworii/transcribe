@@ -37,19 +37,45 @@ def format_transcript_as_markdown(
     Format speaker turns as Markdown transcript.
 
     Output format:
-    [00:00:00] Speaker 1: Hello everyone, thanks for joining.
-    [00:00:15] Speaker 2: Happy to be here.
+    [00:00:00] Mike: Hello everyone, thanks for joining.
+    [00:00:15] Speaker 1: Happy to be here.
+
+    If speaker detection identifies names, use them directly.
+    If detection fails, use generic "Speaker N" labels.
     """
     lines = []
 
-    # Create mapping from speaker labels to numbers
+    # Separate speakers into detected names and generic labels
     unique_speakers = sorted(set(turn.speaker_label for turn in speaker_turns))
-    speaker_mapping = {label: str(i + 1) for i, label in enumerate(unique_speakers)}
+
+    # Check if a label looks like a detected name (not just a number or single letter)
+    def is_detected_name(label: str) -> bool:
+        """Check if label appears to be a detected name vs generic label."""
+        # Generic labels are typically single letters (A, B, C) or numbers (0, 1, 2)
+        if len(label) == 1:
+            return False
+        # Check if it's just a number
+        if label.isdigit():
+            return False
+        # Treat "Unknown" as a generic label, not a detected name
+        if label.lower() == "unknown":
+            return False
+        return True
+
+    # Create mapping for generic labels only
+    generic_speakers = [s for s in unique_speakers if not is_detected_name(s)]
+    speaker_number_mapping = {label: i + 1 for i, label in enumerate(generic_speakers)}
 
     for turn in speaker_turns:
         timestamp = format_timestamp(turn.start_seconds)
-        speaker_number = speaker_mapping[turn.speaker_label]
-        speaker_name = f"Speaker {speaker_number}"
+
+        # Use detected name directly, or map generic label to "Speaker N"
+        if is_detected_name(turn.speaker_label):
+            speaker_name = turn.speaker_label
+        else:
+            speaker_number = speaker_number_mapping[turn.speaker_label]
+            speaker_name = f"Speaker {speaker_number}"
+
         lines.append(f"{timestamp} {speaker_name}: {turn.text}")
 
     return "\n".join(lines)

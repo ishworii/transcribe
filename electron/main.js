@@ -11,7 +11,9 @@ const NEXT_PORT = 3000;
 const IS_DEV = process.env.NODE_ENV === "development" || !app.isPackaged;
 
 // In packaged builds, resources live at process.resourcesPath
-const RESOURCES = app.isPackaged ? process.resourcesPath : path.join(__dirname, "..");
+const RESOURCES = app.isPackaged
+  ? process.resourcesPath
+  : path.join(__dirname, "..");
 
 // ---------------------------------------------------------------------------
 // Backend process management
@@ -22,14 +24,26 @@ function startApiServer() {
   const backendDir = path.join(RESOURCES, "backend");
   const pythonCmd = process.platform === "win32" ? "python" : "python3";
 
-  apiProcess = spawn(pythonCmd, ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", String(API_PORT)], {
-    cwd: backendDir,
-    env: {
-      ...process.env,
-      PYTHONPATH: path.join(RESOURCES, "utilities_data", "transcribe"),
+  apiProcess = spawn(
+    pythonCmd,
+    [
+      "-m",
+      "uvicorn",
+      "main:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      String(API_PORT),
+    ],
+    {
+      cwd: backendDir,
+      env: {
+        ...process.env,
+        PYTHONPATH: path.join(RESOURCES, "utilities_data", "transcribe"),
+      },
+      stdio: ["ignore", "pipe", "pipe"],
     },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  );
 
   apiProcess.stdout.on("data", (d) => process.stdout.write(`[api] ${d}`));
   apiProcess.stderr.on("data", (d) => process.stderr.write(`[api] ${d}`));
@@ -64,7 +78,10 @@ function waitForPort(port, timeout = 30000) {
         else retry();
       });
       req.on("error", retry);
-      req.setTimeout(500, () => { req.destroy(); retry(); });
+      req.setTimeout(500, () => {
+        req.destroy();
+        retry();
+      });
     };
     const retry = () => {
       if (Date.now() - start > timeout) {
@@ -120,6 +137,7 @@ async function createWindow() {
     minHeight: 560,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     backgroundColor: "#0a0a0a",
+    icon: path.join(RESOURCES, "frontend", "public", "logo.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -139,11 +157,9 @@ async function createWindow() {
 
   mainWindow.loadURL(appUrl);
 
-  if (IS_DEV) {
-    mainWindow.webContents.openDevTools({ mode: "detach" });
-  }
-
-  mainWindow.on("closed", () => { mainWindow = null; });
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -159,8 +175,8 @@ app.on("ready", async () => {
     // In dev, Next.js is already running before Electron starts (via concurrently + wait-on)
     readyChecks.push(
       waitForPort(NEXT_PORT, 60000).catch((e) =>
-        console.error("Next.js did not start in time:", e.message)
-      )
+        console.error("Next.js did not start in time:", e.message),
+      ),
     );
   }
 

@@ -8,10 +8,7 @@ from typing import Optional
 import assemblyai as aai
 from dotenv import load_dotenv
 from ffmpeg_audio import AudioExtractResult, normalize_to_wav
-from format_md import (
-    assemblyai_to_speaker_turns,
-    save_transcript_markdown,
-)
+from format_md import assemblyai_to_speaker_turns, save_transcript_markdown
 from media_probe import probe_media
 
 # Load environment variables
@@ -68,9 +65,7 @@ def transcribe_audio_file(
     import warnings
 
     # Suppress Pydantic serialization warning for speech_understanding
-    warnings.filterwarnings(
-        "ignore", category=UserWarning, module="pydantic"
-    )
+    warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
     api_key = _ensure_api_key()
     aai.settings.api_key = api_key
@@ -80,7 +75,7 @@ def transcribe_audio_file(
         speaker_labels=speaker_labels,
         punctuate=punctuate,
         format_text=format_text,
-        speech_model=aai.SpeechModel.universal,
+        speech_models=["universal-2"],
     )
     config.speech_understanding = {
         "request": {
@@ -99,9 +94,7 @@ def transcribe_audio_file(
     transcript = transcriber.transcribe(str(audio_path), config)
 
     if transcript.status == aai.TranscriptStatus.error:
-        raise AssemblyAIError(
-            f"Transcription failed: {transcript.error}"
-        )
+        raise AssemblyAIError(f"Transcription failed: {transcript.error}")
 
     if not transcript.utterances:
         raise AssemblyAIError(
@@ -113,13 +106,12 @@ def transcribe_audio_file(
 
 def _extract_speaker_names(transcript: aai.Transcript) -> dict[str, str]:
     """Extract speaker label → detected name mapping from AssemblyAI speech_understanding result."""
+
     def _parse(su: object) -> dict[str, str]:
         if not isinstance(su, dict):
             return {}
         speakers = (
-            su.get("result", {})
-              .get("speaker_identification", {})
-              .get("speakers", [])
+            su.get("result", {}).get("speaker_identification", {}).get("speakers", [])
         )
         if not isinstance(speakers, list):
             return {}
@@ -233,25 +225,19 @@ def transcribe_with_normalization(
         print(f"Normalized: {audio_result.output_wav_path}")
 
         # Transcribe with AssemblyAI
-        print(
-            "Transcribing with AssemblyAI (this may take a few minutes)..."
-        )
+        print("Transcribing with AssemblyAI (this may take a few minutes)...")
         transcript = transcribe_audio_file(
             audio_result.output_wav_path,
             language_code=language_code,
         )
-        print(
-            f"Transcription complete! Word count: {len(transcript.words or [])}"
-        )
+        print(f"Transcription complete! Word count: {len(transcript.words or [])}")
 
         # Extract speaker names from speech_understanding, then build turns
         speaker_names = _extract_speaker_names(transcript)
         speaker_turns = assemblyai_to_speaker_turns(
             transcript.utterances, speaker_names=speaker_names
         )
-        print(
-            f"Detected {len(set(t.speaker_label for t in speaker_turns))} speakers"
-        )
+        print(f"Detected {len(set(t.speaker_label for t in speaker_turns))} speakers")
 
         # Save as markdown
         md_path = save_transcript_markdown(

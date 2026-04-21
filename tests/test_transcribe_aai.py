@@ -1,9 +1,9 @@
 """Tests for transcribe_aai.py — AssemblyAI integration and speaker name extraction."""
-import os
-import pytest
+
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from transcribe_aai import (
     AssemblyAIError,
     _ensure_api_key,
@@ -11,10 +11,10 @@ from transcribe_aai import (
     transcribe_with_normalization,
 )
 
-
 # ---------------------------------------------------------------------------
 # _ensure_api_key
 # ---------------------------------------------------------------------------
+
 
 class TestEnsureApiKey:
     def test_raises_when_key_missing(self, monkeypatch):
@@ -31,6 +31,7 @@ class TestEnsureApiKey:
 # _extract_speaker_names
 # ---------------------------------------------------------------------------
 
+
 class TestExtractSpeakerNames:
     def _make_transcript(self, speech_understanding=None, json_response=None):
         transcript = MagicMock()
@@ -39,31 +40,31 @@ class TestExtractSpeakerNames:
         return transcript
 
     def _su_payload(self, speakers):
-        return {
-            "result": {
-                "speaker_identification": {
-                    "speakers": speakers
-                }
-            }
-        }
+        return {"result": {"speaker_identification": {"speakers": speakers}}}
 
     def test_no_speech_understanding_returns_empty(self):
-        transcript = self._make_transcript(speech_understanding=None, json_response=None)
+        transcript = self._make_transcript(
+            speech_understanding=None, json_response=None
+        )
         assert _extract_speaker_names(transcript) == {}
 
     def test_extracts_names_from_attribute(self):
-        payload = self._su_payload([
-            {"speaker_label": "A", "name": "Mike"},
-            {"speaker_label": "B", "name": "Jennifer"},
-        ])
+        payload = self._su_payload(
+            [
+                {"speaker_label": "A", "name": "Mike"},
+                {"speaker_label": "B", "name": "Jennifer"},
+            ]
+        )
         transcript = self._make_transcript(speech_understanding=payload)
         result = _extract_speaker_names(transcript)
         assert result == {"A": "Mike", "B": "Jennifer"}
 
     def test_extracts_names_from_json_response(self):
-        payload = self._su_payload([
-            {"speaker_label": "A", "name": "Alice"},
-        ])
+        payload = self._su_payload(
+            [
+                {"speaker_label": "A", "name": "Alice"},
+            ]
+        )
         transcript = self._make_transcript(
             speech_understanding=None,
             json_response={"speech_understanding": payload},
@@ -82,27 +83,33 @@ class TestExtractSpeakerNames:
         assert result["A"] == "FromAttr"
 
     def test_skips_entries_missing_name(self):
-        payload = self._su_payload([
-            {"speaker_label": "A", "name": "Mike"},
-            {"speaker_label": "B"},  # missing name
-        ])
+        payload = self._su_payload(
+            [
+                {"speaker_label": "A", "name": "Mike"},
+                {"speaker_label": "B"},  # missing name
+            ]
+        )
         transcript = self._make_transcript(speech_understanding=payload)
         result = _extract_speaker_names(transcript)
         assert "B" not in result
         assert result["A"] == "Mike"
 
     def test_skips_entries_with_empty_name(self):
-        payload = self._su_payload([
-            {"speaker_label": "A", "name": ""},
-        ])
+        payload = self._su_payload(
+            [
+                {"speaker_label": "A", "name": ""},
+            ]
+        )
         transcript = self._make_transcript(speech_understanding=payload)
         result = _extract_speaker_names(transcript)
         assert result == {}
 
     def test_skips_entries_missing_label(self):
-        payload = self._su_payload([
-            {"name": "OrphanName"},
-        ])
+        payload = self._su_payload(
+            [
+                {"name": "OrphanName"},
+            ]
+        )
         transcript = self._make_transcript(speech_understanding=payload)
         result = _extract_speaker_names(transcript)
         assert result == {}
@@ -127,6 +134,7 @@ class TestExtractSpeakerNames:
 # transcribe_with_normalization (integration, fully mocked)
 # ---------------------------------------------------------------------------
 
+
 class TestTranscribeWithNormalization:
     def _make_utterance(self, speaker, start_ms, end_ms, text):
         utt = MagicMock()
@@ -138,6 +146,7 @@ class TestTranscribeWithNormalization:
 
     def _make_media_info(self, path, has_audio=True):
         from media_probe import MediaInfo
+
         return MediaInfo(
             path=Path(path),
             duration_seconds=30.0,
@@ -149,6 +158,7 @@ class TestTranscribeWithNormalization:
 
     def _make_audio_result(self, wav_path):
         from ffmpeg_audio import AudioExtractResult
+
         return AudioExtractResult(
             input_path=wav_path,
             media_info=MagicMock(),
@@ -200,13 +210,16 @@ class TestTranscribeWithNormalization:
         transcript.json_response = None
 
         import assemblyai as aai
+
         transcript.status = aai.TranscriptStatus.completed
 
         out_md = tmp_path / "out.md"
 
         with patch("transcribe_aai.probe_media", return_value=media_info):
             with patch("transcribe_aai.normalize_to_wav", return_value=audio_result):
-                with patch("transcribe_aai.transcribe_audio_file", return_value=transcript):
+                with patch(
+                    "transcribe_aai.transcribe_audio_file", return_value=transcript
+                ):
                     md_path, _ = transcribe_with_normalization(audio, out_md)
 
         assert md_path == out_md.resolve()
@@ -231,14 +244,19 @@ class TestTranscribeWithNormalization:
         transcript.json_response = None
 
         import assemblyai as aai
+
         transcript.status = aai.TranscriptStatus.completed
 
         out_md = tmp_path / "out.md"
 
         with patch("transcribe_aai.probe_media", return_value=media_info):
             with patch("transcribe_aai.normalize_to_wav", return_value=audio_result):
-                with patch("transcribe_aai.transcribe_audio_file", return_value=transcript):
-                    transcribe_with_normalization(audio, out_md, title="My Custom Title")
+                with patch(
+                    "transcribe_aai.transcribe_audio_file", return_value=transcript
+                ):
+                    transcribe_with_normalization(
+                        audio, out_md, title="My Custom Title"
+                    )
 
         assert "# My Custom Title" in out_md.read_text(encoding="utf-8")
 
@@ -266,13 +284,16 @@ class TestTranscribeWithNormalization:
         transcript.json_response = None
 
         import assemblyai as aai
+
         transcript.status = aai.TranscriptStatus.completed
 
         out_md = tmp_path / "out.md"
 
         with patch("transcribe_aai.probe_media", return_value=media_info):
             with patch("transcribe_aai.normalize_to_wav", return_value=audio_result):
-                with patch("transcribe_aai.transcribe_audio_file", return_value=transcript):
+                with patch(
+                    "transcribe_aai.transcribe_audio_file", return_value=transcript
+                ):
                     transcribe_with_normalization(audio, out_md)
 
         assert "Mike: Hey there" in out_md.read_text(encoding="utf-8")
@@ -294,11 +315,13 @@ class TestTranscribeWithNormalization:
         transcript.json_response = None
 
         import assemblyai as aai
+
         transcript.status = aai.TranscriptStatus.completed
 
         created_dirs = []
 
         original_mkdtemp = __import__("tempfile").mkdtemp
+
         def capturing_mkdtemp():
             d = original_mkdtemp()
             created_dirs.append(d)
@@ -308,10 +331,48 @@ class TestTranscribeWithNormalization:
 
         with patch("transcribe_aai.probe_media", return_value=media_info):
             with patch("transcribe_aai.normalize_to_wav", return_value=audio_result):
-                with patch("transcribe_aai.transcribe_audio_file", return_value=transcript):
+                with patch(
+                    "transcribe_aai.transcribe_audio_file", return_value=transcript
+                ):
                     with patch("tempfile.mkdtemp", side_effect=capturing_mkdtemp):
                         transcribe_with_normalization(audio, out_md, keep_wav=False)
 
         # All created temp dirs should be cleaned up
         for d in created_dirs:
             assert not Path(d).exists()
+
+
+# ---------------------------------------------------------------------------
+# transcribe_audio_file
+# ---------------------------------------------------------------------------
+
+
+class TestTranscribeAudioFile:
+    def test_uses_speech_models_config_field(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("ASSEMBLYAI_API_KEY", "test-key")
+        audio = tmp_path / "audio.wav"
+        audio.write_bytes(b"fake")
+
+        transcript = MagicMock()
+        transcript.status = MagicMock()
+        transcript.status = __import__("assemblyai").TranscriptStatus.completed
+        transcript.utterances = [MagicMock()]
+        transcript.words = []
+        transcript.speech_understanding = None
+        transcript.json_response = None
+
+        with patch("transcribe_aai.aai.TranscriptionConfig") as config_cls:
+            fake_config = MagicMock()
+            config_cls.return_value = fake_config
+
+            with patch("transcribe_aai.aai.Transcriber") as transcriber_cls:
+                transcriber = transcriber_cls.return_value
+                transcriber.transcribe.return_value = transcript
+
+                result = __import__("transcribe_aai").transcribe_audio_file(audio)
+
+        assert result is transcript
+        assert config_cls.call_count == 1
+        assert config_cls.call_args.kwargs["speech_models"] == ["universal-2"]
+        assert "speech_model" not in config_cls.call_args.kwargs
+        transcriber.transcribe.assert_called_once_with(str(audio), fake_config)

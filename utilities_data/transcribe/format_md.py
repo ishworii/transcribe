@@ -28,6 +28,17 @@ def format_timestamp(seconds: float) -> str:
     return f"[{hh:02d}:{mm:02d}:{ss:02d}]"
 
 
+def is_detected_name(label: str) -> bool:
+    """Return True if label looks like a real detected name, not a generic speaker label."""
+    if len(label) <= 1:
+        return False
+    if label.isdigit():
+        return False
+    if label.lower() == "unknown":
+        return False
+    return True
+
+
 def format_transcript_as_markdown(
     speaker_turns: list[SpeakerTurn],
     *,
@@ -37,72 +48,61 @@ def format_transcript_as_markdown(
     Format speaker turns as Markdown transcript.
 
     Output format:
+    # Title (if provided)
+
     [00:00:00] Mike: Hello everyone, thanks for joining.
     [00:00:15] Speaker 1: Happy to be here.
-
-    If speaker detection identifies names, use them directly.
-    If detection fails, use generic "Speaker N" labels.
     """
     lines = []
 
-    # Separate speakers into detected names and generic labels
+    if title:
+        lines.append(f"# {title}")
+        lines.append("")
+
     unique_speakers = sorted(set(turn.speaker_label for turn in speaker_turns))
-
-    # Check if a label looks like a detected name (not just a number or single letter)
-    def is_detected_name(label: str) -> bool:
-        """Check if label appears to be a detected name vs generic label."""
-        # Generic labels are typically single letters (A, B, C) or numbers (0, 1, 2)
-        if len(label) == 1:
-            return False
-        # Check if it's just a number
-        if label.isdigit():
-            return False
-        # Treat "Unknown" as a generic label, not a detected name
-        if label.lower() == "unknown":
-            return False
-        return True
-
-    # Create mapping for generic labels only
     generic_speakers = [s for s in unique_speakers if not is_detected_name(s)]
     speaker_number_mapping = {label: i + 1 for i, label in enumerate(generic_speakers)}
 
     for turn in speaker_turns:
         timestamp = format_timestamp(turn.start_seconds)
-
-        # Use detected name directly, or map generic label to "Speaker N"
         if is_detected_name(turn.speaker_label):
             speaker_name = turn.speaker_label
         else:
             speaker_number = speaker_number_mapping[turn.speaker_label]
             speaker_name = f"Speaker {speaker_number}"
-
         lines.append(f"{timestamp} {speaker_name}: {turn.text}")
 
     return "\n".join(lines)
 
 
-def assemblyai_to_speaker_turns(utterances) -> list[SpeakerTurn]:
+def assemblyai_to_speaker_turns(
+    utterances,
+    speaker_names: Optional[dict[str, str]] = None,
+) -> list[SpeakerTurn]:
     """
     Convert AssemblyAI utterances to SpeakerTurn objects.
 
     Args:
         utterances: List of AssemblyAI utterance objects
+        speaker_names: Optional mapping of raw label (e.g. "A") to detected name (e.g. "Mike")
 
     Returns:
         List of SpeakerTurn objects
     """
     turns = []
+    names = speaker_names or {}
 
     for utt in utterances:
         start_sec = utt.start / 1000.0  # ms -> s
         end_sec = utt.end / 1000.0  # ms -> s
-        speaker = utt.speaker  # typically 0, 1, 2...
+        raw_label = str(utt.speaker)
+        speaker = names.get(raw_label) or raw_label
         text = (utt.text or "").strip()
 
         if text:
             turns.append(
                 SpeakerTurn(
-                    speaker_label=str(speaker),
+                    speaker_label=speaker,
                     start_seconds=start_sec,
                     end_seconds=end_sec,
                     text=text,

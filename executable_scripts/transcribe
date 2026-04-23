@@ -69,6 +69,28 @@ def main():
         help="Keep the normalized WAV file after transcription",
     )
 
+    parser.add_argument(
+        "--backend",
+        "-b",
+        choices=["assemblyai", "whisper"],
+        default="assemblyai",
+        help=(
+            "Transcription backend (default: assemblyai). "
+            "'whisper' uses local faster-whisper — free, no API key, no internet required."
+        ),
+    )
+
+    parser.add_argument(
+        "--model",
+        "-m",
+        default="base",
+        help=(
+            "Whisper model size (only for --backend whisper). "
+            "Options: tiny, base, small, medium, large-v3, large-v3-turbo. "
+            "Larger = more accurate but slower. Default: base."
+        ),
+    )
+
     # Show help if no arguments provided
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
@@ -81,23 +103,34 @@ def main():
         output_path = args.output
     else:
         input_path = Path(args.input_file)
-        # Save to current working directory with input filename + .md extension
-        # e.g., transcribe /path/to/video.mp4 -> creates ./video.md in current dir
         output_filename = input_path.stem + '.md'
         output_path = Path.cwd() / output_filename
 
     try:
-        print("=" * 80)
-        print("AssemblyAI Audio Transcription")
-        print("=" * 80)
-
-        transcribe_with_normalization(
-            input_file=args.input_file,
-            output_md=output_path,
-            language_code=args.language,
-            title=args.title,
-            keep_wav=args.keep_wav,
-        )
+        if args.backend == "whisper":
+            from transcribe_whisper import transcribe_whisper_pipeline
+            print("=" * 80)
+            print(f"Whisper Local Transcription (model: {args.model})")
+            print("=" * 80)
+            transcribe_whisper_pipeline(
+                input_file=args.input_file,
+                output_md=output_path,
+                model_size=args.model,
+                language_code=args.language,
+                title=args.title,
+                keep_wav=args.keep_wav,
+            )
+        else:
+            print("=" * 80)
+            print("AssemblyAI Audio Transcription")
+            print("=" * 80)
+            transcribe_with_normalization(
+                input_file=args.input_file,
+                output_md=output_path,
+                language_code=args.language,
+                title=args.title,
+                keep_wav=args.keep_wav,
+            )
 
         print("=" * 80)
         print("Transcription completed successfully!")

@@ -111,6 +111,47 @@ def transcribe_audio_file(
     return transcript
 
 
+def _extract_speaker_names(transcript: aai.Transcript) -> dict[str, str]:
+    """Extract speaker label → detected name mapping from AssemblyAI speech_understanding result."""
+    def _parse(su: object) -> dict[str, str]:
+        if not isinstance(su, dict):
+            return {}
+        speakers = (
+            su.get("result", {})
+              .get("speaker_identification", {})
+              .get("speakers", [])
+        )
+        if not isinstance(speakers, list):
+            return {}
+        return {
+            s["speaker_label"]: s["name"]
+            for s in speakers
+            if isinstance(s, dict) and s.get("speaker_label") and s.get("name")
+        }
+
+    try:
+        su = getattr(transcript, "speech_understanding", None)
+        if su:
+            names = _parse(su)
+            if names:
+                return names
+    except Exception:
+        pass
+
+    try:
+        jr = getattr(transcript, "json_response", None)
+        if isinstance(jr, dict):
+            su = jr.get("speech_understanding")
+            if su:
+                names = _parse(su)
+                if names:
+                    return names
+    except Exception:
+        pass
+
+    return {}
+
+
 def transcribe_with_normalization(
     input_file: str | Path,
     output_md: str | Path,
@@ -203,9 +244,10 @@ def transcribe_with_normalization(
             f"Transcription complete! Word count: {len(transcript.words or [])}"
         )
 
-        # Convert to speaker turns
+        # Extract speaker names from speech_understanding, then build turns
+        speaker_names = _extract_speaker_names(transcript)
         speaker_turns = assemblyai_to_speaker_turns(
-            transcript.utterances
+            transcript.utterances, speaker_names=speaker_names
         )
         print(
             f"Detected {len(set(t.speaker_label for t in speaker_turns))} speakers"

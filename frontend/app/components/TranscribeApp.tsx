@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import LogoMark from "./LogoMark";
 import DropZone from "./DropZone";
 import ProgressView from "./ProgressView";
 import TranscriptView from "./TranscriptView";
@@ -63,8 +64,14 @@ const PROVIDERS: Provider[] = [
     diarization: false,
     defaultModel: "gpt-4o-mini-transcribe",
     models: [
-      { value: "gpt-4o-mini-transcribe", label: "gpt-4o-mini — $0.003/min (fast)" },
-      { value: "gpt-4o-transcribe", label: "gpt-4o — $0.006/min (best quality)" },
+      {
+        value: "gpt-4o-mini-transcribe",
+        label: "gpt-4o-mini — $0.003/min (fast)",
+      },
+      {
+        value: "gpt-4o-transcribe",
+        label: "gpt-4o — $0.006/min (best quality)",
+      },
       { value: "whisper-1", label: "whisper-1 — $0.006/min (classic)" },
     ],
   },
@@ -82,7 +89,10 @@ const PROVIDERS: Provider[] = [
       { value: "base", label: "base — balanced, ~74 MB (default)" },
       { value: "small", label: "small — better accuracy, ~244 MB" },
       { value: "medium", label: "medium — high accuracy, ~769 MB" },
-      { value: "large-v3-turbo", label: "large-v3-turbo — best quality, ~1.5 GB" },
+      {
+        value: "large-v3-turbo",
+        label: "large-v3-turbo — best quality, ~1.5 GB",
+      },
     ],
   },
 ];
@@ -116,7 +126,8 @@ interface BackendHealth {
 
 export default function TranscribeApp() {
   const [appState, setAppState] = useState<AppState>("idle");
-  const [selectedBackend, setSelectedBackend] = useState<BackendKey>("assemblyai");
+  const [selectedBackend, setSelectedBackend] =
+    useState<BackendKey>("assemblyai");
   const [model, setModel] = useState("");
   const [language, setLanguage] = useState("");
   const [title, setTitle] = useState("");
@@ -169,7 +180,10 @@ export default function TranscribeApp() {
 
       let jobId: string;
       try {
-        const res = await fetch("/api/transcribe", { method: "POST", body: fd });
+        const res = await fetch("/api/transcribe", {
+          method: "POST",
+          body: fd,
+        });
         if (!res.ok) {
           const err = await res.json();
           throw new Error(err.detail ?? "Upload failed");
@@ -196,8 +210,14 @@ export default function TranscribeApp() {
           if (payload.status === "completed") {
             fetch(`/api/jobs/${jobId}/transcript`)
               .then((r) => r.json())
-              .then((d) => { setTranscript(d.transcript); setAppState("done"); })
-              .catch((e) => { setErrorMsg(String(e)); setAppState("error"); });
+              .then((d) => {
+                setTranscript(d.transcript);
+                setAppState("done");
+              })
+              .catch((e) => {
+                setErrorMsg(String(e));
+                setAppState("error");
+              });
           } else {
             setErrorMsg(payload.error ?? "Transcription failed");
             setAppState("error");
@@ -212,17 +232,22 @@ export default function TranscribeApp() {
         setAppState("error");
       };
     },
-    [selectedBackend, model, language, title, provider.defaultModel]
+    [selectedBackend, model, language, title, provider.defaultModel],
   );
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
       {/* Header */}
-      <header className="border-b border-neutral-800 px-6 py-4 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center flex-shrink-0">
-          <MicIcon className="w-4 h-4 text-white" />
+      <header className="border-b border-neutral-800/80 bg-neutral-950/85 backdrop-blur px-6 py-4 flex items-center gap-3">
+        <LogoMark className="h-10 w-10 shrink-0" />
+        <div className="leading-tight">
+          <span className="block font-semibold text-lg tracking-tight">
+            Transcribe
+          </span>
+          <span className="block text-xs text-neutral-500">
+            Audio & video to text
+          </span>
         </div>
-        <span className="font-semibold text-lg tracking-tight">Transcribe</span>
         {appState !== "idle" && (
           <button
             onClick={reset}
@@ -234,14 +259,19 @@ export default function TranscribeApp() {
       </header>
 
       <main className="flex-1 flex flex-col items-center px-4 py-10 gap-8 max-w-3xl mx-auto w-full">
-
         {appState === "idle" && (
           <>
-            <div className="w-full">
-              <h1 className="text-2xl font-bold mb-1">Audio & Video Transcription</h1>
-              <p className="text-neutral-400 text-sm">
-                Choose a provider, drop your file, get a speaker-labelled Markdown transcript.
-              </p>
+            <div className="w-full flex items-center gap-4">
+              <LogoMark className="h-14 w-14 shrink-0" />
+              <div>
+                <h1 className="text-2xl font-bold mb-1">
+                  Audio & Video Transcription
+                </h1>
+                <p className="text-neutral-400 text-sm">
+                  Choose a provider, drop your file, get a speaker-labelled
+                  Markdown transcript.
+                </p>
+              </div>
             </div>
 
             {/* Provider cards */}
@@ -264,7 +294,9 @@ export default function TranscribeApp() {
                   className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-violet-500"
                 >
                   {provider.models.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -310,17 +342,27 @@ export default function TranscribeApp() {
         )}
 
         {appState === "processing" && (
-          <ProgressView filename={filename} messages={messages} provider={provider.name} />
+          <ProgressView
+            filename={filename}
+            messages={messages}
+            provider={provider.name}
+          />
         )}
 
         {appState === "done" && transcript && (
-          <TranscriptView transcript={transcript} filename={filename} onReset={reset} />
+          <TranscriptView
+            transcript={transcript}
+            filename={filename}
+            onReset={reset}
+          />
         )}
 
         {appState === "error" && (
           <div className="w-full bg-red-950/60 border border-red-800 rounded-xl p-6 space-y-3">
             <h2 className="font-semibold text-red-300">Transcription failed</h2>
-            <pre className="text-sm text-red-400 font-mono whitespace-pre-wrap">{errorMsg}</pre>
+            <pre className="text-sm text-red-400 font-mono whitespace-pre-wrap">
+              {errorMsg}
+            </pre>
             <button
               onClick={reset}
               className="mt-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm transition-colors"
@@ -345,10 +387,17 @@ interface ProviderSelectorProps {
   onSelect: (key: BackendKey) => void;
 }
 
-function ProviderSelector({ providers, selected, health, onSelect }: ProviderSelectorProps) {
+function ProviderSelector({
+  providers,
+  selected,
+  health,
+  onSelect,
+}: ProviderSelectorProps) {
   return (
     <div className="w-full space-y-2">
-      <h2 className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">Provider</h2>
+      <h2 className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">
+        Provider
+      </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {providers.map((p) => {
           const available = health ? health[p.key] : true;
@@ -367,9 +416,11 @@ function ProviderSelector({ providers, selected, health, onSelect }: ProviderSel
             >
               {/* Header row */}
               <div className="flex items-start justify-between gap-2 mb-2">
-                <span className="font-semibold text-sm leading-tight">{p.name}</span>
+                <span className="font-semibold text-sm leading-tight">
+                  {p.name}
+                </span>
                 <span
-                  className={`flex-shrink-0 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${TIER_STYLES[p.tier]}`}
+                  className={`shrink-0 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${TIER_STYLES[p.tier]}`}
                 >
                   {TIER_LABELS[p.tier]}
                 </span>
@@ -381,14 +432,17 @@ function ProviderSelector({ providers, selected, health, onSelect }: ProviderSel
               {/* Features */}
               <ul className="space-y-0.5 mb-3">
                 {p.features.map((f) => (
-                  <li key={f} className="flex items-center gap-1.5 text-xs text-neutral-300">
-                    <CheckSmallIcon className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                  <li
+                    key={f}
+                    className="flex items-center gap-1.5 text-xs text-neutral-300"
+                  >
+                    <CheckSmallIcon className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                     {f}
                   </li>
                 ))}
                 {!p.diarization && (
                   <li className="flex items-center gap-1.5 text-xs text-neutral-500">
-                    <XSmallIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                    <XSmallIcon className="w-3.5 h-3.5 shrink-0" />
                     No speaker diarization
                   </li>
                 )}
@@ -418,34 +472,43 @@ function ProviderSelector({ providers, selected, health, onSelect }: ProviderSel
 // ---------------------------------------------------------------------------
 
 function Spinner() {
-  return <div className="w-10 h-10 rounded-full border-2 border-neutral-700 border-t-violet-500 animate-spin" />;
-}
-
-// ---------------------------------------------------------------------------
-// Icons
-// ---------------------------------------------------------------------------
-
-function MicIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
-      <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-      <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5h-1.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5H10.75v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 01-9 0v-.357z" />
-    </svg>
+    <div className="w-10 h-10 rounded-full border-2 border-neutral-700 border-t-violet-500 animate-spin" />
   );
 }
 
 function CheckSmallIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l3.5 3.5 6.5-7" />
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      className={className}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 8l3.5 3.5 6.5-7"
+      />
     </svg>
   );
 }
 
 function XSmallIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4l8 8M12 4l-8 8" />
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      className={className}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 4l8 8M12 4l-8 8"
+      />
     </svg>
   );
 }

@@ -1,5 +1,7 @@
 # Transcribe
 
+![Transcribe logo](frontend/public/logo.svg)
+
 Audio and video transcription with speaker identification — available as a **CLI tool**, **web app**, and **cross-platform desktop app**.
 
 ---
@@ -215,6 +217,7 @@ transcribe/
 │   └── jobs.py                  # Thread-safe in-memory job store
 │
 ├── frontend/                    # Next.js 16 + Tailwind CSS
+│   ├── public/logo.svg          # Shared logo / browser icon asset
 │   └── app/components/
 │       ├── TranscribeApp.tsx    # Root — state machine, provider cards
 │       ├── DropZone.tsx         # Drag-and-drop file picker
@@ -256,6 +259,15 @@ Next.js rewrite proxy  →  FastAPI :8000
 ---
 
 ## API reference
+
+### API list
+
+- `GET /api/health` — report backend readiness and available transcription providers
+- `POST /api/transcribe` — upload a file and start a transcription job
+- `GET /api/jobs/{id}` — poll job state, progress messages, and transcript status
+- `GET /api/jobs/{id}/events` — stream live job progress over Server-Sent Events
+- `GET /api/jobs/{id}/transcript` — fetch the completed Markdown transcript
+- `DELETE /api/jobs/{id}` — delete a job and clean up temporary files
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
